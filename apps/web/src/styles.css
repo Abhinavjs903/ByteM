@@ -107,3 +107,55 @@ body{background:#f4f0e8!important;color:#171714}
 .demo-banner{background:#f8e9c9!important;border-color:#e6ce91!important}.empty-state{border-color:#d5cbbb!important}.empty-state h2{color:#171714!important}.empty-state p{color:#777166!important}
 @media(max-width:1000px){.page-topbar{gap:10px;width:calc(100% - 24px)}.top-nav{gap:2px}.top-nav-item{padding:10px 8px;font-size:10px}.top-brand-copy small{display:none}.page-content{padding:35px 22px 55px!important}.welcome-row:has(.hero-visual){padding:32px!important}.hero-visual{flex-basis:200px;transform:scale(.9)}}
 @media(max-width:720px){.page-topbar{top:7px!important;margin-top:7px;width:calc(100% - 14px);padding:9px!important;flex-wrap:wrap;gap:8px;border-radius:11px!important}.top-brand{gap:7px}.top-brand .brand-symbol{width:32px;height:32px}.top-brand-copy strong{font-size:14px}.top-nav{order:3;flex:0 0 100%;justify-content:flex-start;overflow-x:auto;padding-bottom:1px}.top-nav-item{padding:8px 10px;font-size:10px}.topbar-right{margin-left:auto}.live-pill{font-size:8px}.github-link{font-size:10px}.page-content{padding:25px 14px 42px!important}.welcome-row:has(.hero-visual){padding:25px 20px!important;min-height:0}.welcome-row:has(.hero-visual):before{width:25%;opacity:.08}.welcome-row:has(.hero-visual) h1{font-size:39px!important;letter-spacing:-1.8px!important}.hero-visual{display:none}.stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.stat-card{padding:14px!important}.story-section{padding:22px!important}.quick-grid{grid-template-columns:1fr}.section-heading h2{font-size:20px!important}}
+
+/* Readability pass: larger type scale and accessible theme toggle */
+body{font-size:15px}
+.page-content{font-size:15px}
+.muted-text{font-size:15px!important;line-height:1.75!important}
+.muted-text.small{font-size:13px!important}
+.eyebrow{font-size:11px!important;letter-spacing:1.8px}
+.page-content .welcome-row:not(:has(.hero-visual)) h1{font-size:clamp(32px,3.4vw,42px)}
+.section-heading p,.stat-card small,.stat-foot,.quick-card small,.activity-main small,.activity-status,.subtle-label{font-size:12px!important}
+.stat-card small{font-size:12px!important}.stat-foot{font-size:11px!important}
+.quick-card strong,.activity-main strong{font-size:13px!important}.quick-card small,.activity-main small{font-size:11px!important}
+.nav-item,.top-nav-item{font-size:12px!important}
+.research-form label{font-size:13px!important}.research-form input,.research-form select,.role-form input,.role-form textarea{font-size:14px!important}
+.primary,.secondary,.text-button{font-size:13px!important}
+.deliverable strong,.candidate-main h3{font-size:13px!important}.deliverable small,.side-note,.repo-meta,.commit span{font-size:12px!important}
+.report-card p,.candidate-main p,.evidence-item p,.repo p{font-size:13px!important}
+.report-card small,.candidate-main small,.evidence-item a,.repo-title a,.commit a{font-size:12px!important}
+.story-grid p,.role-story-grid button small{font-size:12px!important;line-height:1.75!important}
+.story-grid h3{font-size:16px!important}.role-story-grid button strong{font-size:15px!important}
+.flag-card p{font-size:13px!important}.flag-card h3{font-size:15px!important}.flag-severity{font-size:10px!important}
+.file-help,.selected-file small,.selected-file strong{font-size:12px!important}
+.theme-toggle{border:1px solid #d5cbbb;background:#f1ece2;color:#24231f;border-radius:3px;padding:9px 11px;font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer}
+.theme-toggle:hover{border-color:#ee4b35}
+.theme-dark{background:#10141b!important;color:#eef1f6!important}
+.theme-dark .main-area{background:#10141b!important;color:#eef1f6!important}
+.theme-dark .page-topbar{background:rgba(24,29,38,.94)!important;border-color:#343b48!important;box-shadow:0 10px 35px #0003!important}
+.theme-dark .top-brand,.theme-dark .top-brand-copy strong{color:#f2f4f8!important}
+.theme-dark .top-brand-copy small,.theme-dark .github-link{color:#a8b1c0!important}
+.theme-dark .top-nav-item{color:#c0c8d4!important}
+.theme-dark .top-nav-item:hover{background:#2a303b!important;color:#fff!important}
+.theme-dark .top-nav-item.active{background:#ee4b35!important;border-color:#ee4b35!important;color:#fff!important}
+.theme-dark .theme-toggle{background:#2a303b!important;border-color:#424b5a!important;color:#f4f5f7!important}
+.theme-dark .welcome-row:has(.hero-visual){background:#171d27!important;border-color:#333d4d!important}
+.theme-dark .welcome-row:has(.hero-visual):before{background:#05070b!important}
+.theme-dark .welcome-row:has(.hero-visual) h1{color:#f4f5f7!important}
+.theme-dark .welcome-row:has(.hero-visual) .muted-text,.theme-dark .muted-text{color:#b2bdcc!important}
+.theme-dark .hero-chips span{background:#242c38!important;border-color:#3a4657!important;color:#e2e8f0!important}
+.theme-dark .stat-card,.theme-dark .quick-card,.theme-dark .activity-list,.theme-dark .activity-row,.theme-dark .surface-card,.theme-dark .report-card,.theme-dark .candidate-card,.theme-dark .source-card{background:#1a202b!important;border-color:#333d4d!important;color:#eef1f6!important}
+.theme-dark .stat-card strong,.theme-dark .section-heading h2,.theme-dark .surface-card h2,.theme-dark .what-card h2,.theme-dark .candidate-main h3,.theme-dark .report-heading h2,.theme-dark .report-heading h3,.theme-dark .evidence-item strong,.theme-dark .repo-title a,.theme-dark .quick-card strong,.theme-dark .activity-main strong{color:#f2f4f8!important}
+.theme-dark .stat-card small,.theme-dark .stat-foot,.theme-dark .section-heading p,.theme-dark .quick-card small,.theme-dark .activity-main small,.theme-dark .source-card p,.theme-dark .report-card p,.theme-dark .candidate-main p{color:#aab5c5!important}
+.theme-dark .notice-banner{background:#202a36!important;border-color:#394657!important}.theme-dark .notice-banner p{color:#c0cad8!important}.theme-dark .notice-banner strong{color:#fff!important}
+.theme-dark .story-section{background:#080b10!important;border-color:#303744!important}.theme-dark .story-grid article,.theme-dark .role-story-grid button{background:#171d27!important;border-color:#343d4a!important}
+.theme-dark .research-form input,.theme-dark .research-form select,.theme-dark .role-form input,.theme-dark .role-form textarea{background:#10151e!important;border-color:#3a4555!important;color:#f2f4f8!important}
+.theme-dark .research-form label,.theme-dark .role-builder h3,.theme-dark .deliverable strong,.theme-dark .selected-file strong{color:#e8edf4!important}
+.theme-dark .role-builder,.theme-dark .side-note,.theme-dark .deliverable,.theme-dark .metrics div,.theme-dark .repo,.theme-dark .commit,.theme-dark .evidence-item,.theme-dark .selected-file{background:#151b24!important;border-color:#333d4b!important}
+.theme-dark .deliverable small,.theme-dark .side-note,.theme-dark .repo p,.theme-dark .repo-meta,.theme-dark .commit span,.theme-dark .flag-card p{color:#aab5c5!important}
+.theme-dark .flag-card{background:#1a202b!important;border-color:#394454!important}.theme-dark .flag-card h3{color:#f2f4f8!important}
+.theme-dark .fit-track{background:#343d4a!important}.theme-dark .file-help,.theme-dark .selected-file small{color:#aab5c5!important}
+.theme-dark .secondary{background:#252c37!important;border-color:#414b5b!important;color:#f1f4f8!important}
+.theme-dark .empty-state{border-color:#3b4554!important}.theme-dark .empty-state h2{color:#f1f4f8!important}.theme-dark .empty-state p{color:#aab5c5!important}
+.theme-dark .app-footer{border-color:#343d4a!important;color:#9aa6b7!important}
+@media(max-width:720px){.topbar-right{gap:7px}.theme-toggle{font-size:11px;padding:7px 8px}.muted-text{font-size:14px!important}.stat-card strong{font-size:28px!important}.section-heading h2{font-size:21px!important}}
