@@ -33,3 +33,14 @@ Optional: set `GITHUB_TOKEN` in `apps/api/.env` to raise GitHub API rate limits.
 - Custom roles are saved in `apps/api/data/roles.json` on the machine running the API.
 - GitHub evidence is limited to public metadata and a small commit sample. No full source-code audit or proof of authorship is performed.
 - Runtime/build and end-to-end behavior still need to be verified locally after installing dependencies.
+
+## Chrome extension prototype
+
+A Manifest V3 side panel now lives in `apps/extension`. It connects to the local Express API for GitHub research and resume claim-to-evidence triage.
+
+1. Start `apps/api` as described above.
+2. Open `chrome://extensions` and enable **Developer mode**.
+3. Click **Load unpacked** and select `apps/extension`.
+4. Pin ByteM, open the side panel, and test with a public GitHub profile.
+
+The extension can prefill the active GitHub tab URL, request repository/commit evidence, and submit resume claims with public source links. GitHub and Hugging Face metadata retrieval is supported by the API; LinkedIn and Kaggle remain manual-review sources. The extension is a prototype and has not yet undergone browser QA or automated tests. It does not integrate WebCMD or an LLM yet.
