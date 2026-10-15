@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark">
+  <title>ByteM — Candidate Research</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">B</span><div><strong>ByteM</strong><small>BYTE MATTERS · RESEARCH ASSISTANT</small></div></div>
+    <span class="status"><i></i> LOCAL API</span>
+  </header>
+  <main>
+    <section class="intro">
+      <p class="eyebrow">EVIDENCE OVER ASSUMPTIONS</p>
+      <h1>Research beyond the resume.</h1>
+      <p>Connect candidate claims to inspectable public artifacts. ByteM supports human review; it does not decide who to hire.</p>
+    </section>
+    <section class="panel">
+      <div class="section-title"><span class="step">01</span><div><h2>Candidate & role</h2><p>Start from a public profile or repository.</p></div></div>
+      <label for="profileUrl">GitHub profile / repository URL</label>
+      <div class="input-row"><input id="profileUrl" type="url" placeholder="https://github.com/username"><button id="useCurrent" class="secondary">Use tab</button></div>
+      <label for="role">Research lens</label>
+      <select id="role"><option value="sde">Software Engineering</option><option value="cybersecurity">Cybersecurity</option><option value="ml_ai">Machine Learning / AI</option></select>
+      <button id="researchBtn" class="primary">Research GitHub evidence <span>↗</span></button>
+      <p id="researchStatus" class="status-line" role="status"></p>
+      <div id="researchResult" class="result hidden"></div>
+    </section>
+    <section class="panel">
+      <div class="section-title"><span class="step">02</span><div><h2>Verify resume claims</h2><p>One factual claim per line; add public source links.</p></div></div>
+      <label for="claims">Claims from the resume</label>
+      <textarea id="claims" rows="4" placeholder="Built an ML model achieving 94% accuracy&#10;Led development of a production-ready application"></textarea>
+      <label for="sourceUrls">GitHub / Hugging Face / LinkedIn / Kaggle links</label>
+      <textarea id="sourceUrls" rows="3" placeholder="https://github.com/username/project&#10;https://huggingface.co/username/model"></textarea>
+      <button id="verifyBtn" class="primary">Compare claims with evidence <span>→</span></button>
+      <p id="verifyStatus" class="status-line" role="status"></p>
+      <div id="verifyResult" class="result hidden"></div>
+    </section>
+    <footer><strong>Evidence-first, human-led.</strong><p>Metadata overlap is not proof of authorship. Missing public evidence is not proof a claim is false.</p><a href="https://github.com/Abhinavjs903/ByteM" target="_blank" rel="noreferrer">View ByteM on GitHub ↗</a></footer>
+  </main>
+  <script src="sidepanel.js"></script>
+</body>
+</html>
