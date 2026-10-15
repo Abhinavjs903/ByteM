@@ -73,7 +73,7 @@ app.post("/api/resume/verify", async (q, r) => {
     }
     return { url: u.href, platform, accessible: false, detail: "Source link recorded, but automatic verification is not integrated for this platform. Human review required." };
   }));
-  const evidenceText = sourceResults.map(s => JSON.stringify(s.evidence || {}) + " " + s.detail).join(" ").toLowerCase();
+  const evidenceText = sourceResults.map(s => JSON.stringify((s as any).evidence || {}) + " " + s.detail).join(" ").toLowerCase();
   const claims = parsed.data.claims.map(claim => {
     const terms = claim.toLowerCase().match(/[a-z0-9+#.]{3,}/g) || [];
     const meaningful = terms.filter(t => !["the","and","for","with","from","built","using","used","developed","created","worked","project","candidate","implemented","responsible","helped","that","this"].includes(t));
