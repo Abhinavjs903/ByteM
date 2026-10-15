@@ -28,5 +28,64 @@ type Repo={name:string;full_name:string;html_url:string;description:string|null;
 type Commit={html_url:string;commit:{message:string;author:{date:string;name:string}|null};author:{login:string}|null};
 async function gh<T>(p:string):Promise<T>{const headers:Record<string,string>={Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28","User-Agent":"ByteM"};if(process.env.GITHUB_TOKEN)headers.Authorization="Bearer "+process.env.GITHUB_TOKEN;const response=await fetch(GH+p,{headers,signal:AbortSignal.timeout(12000)});if(!response.ok){const e=new Error(response.status===404?"GitHub profile/repository not found or private.":response.status===403?"GitHub rate limit reached; set GITHUB_TOKEN in apps/api/.env.":`GitHub API returned ${response.status}`);(e as Error&{status?:number}).status=response.status;throw e}return response.json() as Promise<T>}
 app.post("/api/research",async(q,r)=>{const p=z.object({githubUrl:z.string().url(),role:z.string().min(1)}).safeParse(q.body);if(!p.success)return r.status(400).json({error:"Provide a GitHub URL and role."});let url:URL;try{url=new URL(p.data.githubUrl);if(url.hostname!=="github.com")throw Error();}catch{return r.status(400).json({error:"Use a github.com profile or repository URL."})}const parts=url.pathname.split("/").filter(Boolean);if(parts.length<1||parts.length>2)return r.status(400).json({error:"Use github.com/user or github.com/owner/repo."});try{const owner=parts[0],profile=await gh<any>("/users/"+encodeURIComponent(owner)),all=await gh<Repo[]>("/users/"+encodeURIComponent(owner)+"/repos?per_page=100&sort=updated&type=owner");let repos=all.filter(x=>!x.fork).slice(0,12);if(parts[1]){const selected=await gh<Repo>("/repos/"+encodeURIComponent(owner)+"/"+encodeURIComponent(parts[1]));repos=[selected,...repos.filter(x=>x.full_name!==selected.full_name)].slice(0,12)}const role=(await roles()).find(x=>x.id===p.data.role);if(!role)return r.status(400).json({error:"Unknown role. Refresh role list."});const results=await Promise.all(repos.slice(0,4).map(async repo=>{try{const cs=await gh<Commit[]>("/repos/"+repo.full_name+"/commits?author="+encodeURIComponent(owner)+"&per_page=5");return cs.map(c=>({message:c.commit.message.split("\n")[0],date:c.commit.author?.date??null,url:c.html_url,authorLogin:c.author?.login??null,repo:repo.full_name}))}catch{return[]}}));const commits=results.flat(),related=repos.filter(x=>role.keywords.some(k=>`${x.name} ${x.description??""} ${(x.topics??[]).join(" ")} ${x.language??""}`.toLowerCase().includes(k.toLowerCase()))),languages=[...new Set(repos.map(x=>x.language).filter(Boolean))];r.json({generatedAt:new Date().toISOString(),candidate:{login:profile.login,name:profile.name,bio:profile.bio,avatarUrl:profile.avatar_url,profileUrl:profile.html_url,followers:profile.followers,publicRepos:profile.public_repos,createdAt:profile.created_at},role:role.id,roleLabel:role.name,summary:`@${profile.login} has ${profile.public_repos} public repositories. Sampled languages: ${languages.join(", ")||"not declared"}. Preliminary scan only.`,evidence:[{title:"Public profile retrieved",detail:`GitHub account @${profile.login} retrieved from public API.`,sourceUrl:profile.html_url,kind:"observation"},{title:"Repository sample",detail:`${repos.length} repositories inspected.`,sourceUrl:`https://github.com/${owner}?tab=repositories`,kind:"observation"},{title:"Role keyword signals",detail:`${related.length} repositories match keywords for ${role.name}; this is not proof of skill.`,sourceUrl:`https://github.com/${owner}?tab=repositories`,kind:"observation"}],uncertainties:["Only a limited public sample was inspected.","Metadata cannot prove authorship or implementation depth.","No code-quality or security audit has been performed."],interviewQuestions:["Explain a design decision and trade-off in one sampled project.","Choose a commit and explain the problem, implementation and tests.","What would you improve first and how would you measure the result?"],metrics:{sampledRepositories:repos.length,roleRelatedRepositories:related.length,sampledCommits:commits.length,languages},repositories:repos.map(x=>({name:x.name,fullName:x.full_name,url:x.html_url,description:x.description,language:x.language,stars:x.stargazers_count,forks:x.forks_count,fork:x.fork,updatedAt:x.updated_at,topics:x.topics??[],roleRelated:related.some(y=>y.full_name===x.full_name)})),commits,methodology:`Public GitHub API metadata and keyword matching for ${role.name}; no candidate score is produced.`})}catch(e){const err=e as Error&{status?:number};r.status(err.status===404?404:err.status===403?429:502).json({error:err.message||"GitHub research failed."})}});
+
+/**
+ * Claim-to-evidence review. This is a triage aid, not proof of authorship:
+ * only public, platform-supported metadata is fetched automatically.
+ */
+app.post("/api/resume/verify", async (q, r) => {
+  const parsed = z.object({
+    claims: z.array(z.string().trim().min(8).max(500)).min(1).max(20),
+    sourceUrls: z.array(z.string().url()).max(12).default([])
+  }).safeParse(q.body);
+  if (!parsed.success) return r.status(400).json({ error: "Provide 1–20 specific resume claims and valid source URLs." });
+  const safeSources: URL[] = [];
+  for (const raw of parsed.data.sourceUrls) {
+    try {
+      const u = new URL(raw);
+      if (u.protocol !== "https:" || !["github.com", "www.github.com", "huggingface.co", "www.linkedin.com", "linkedin.com", "kaggle.com", "www.kaggle.com"].includes(u.hostname)) continue;
+      safeSources.push(u);
+    } catch { /* ignore malformed URLs */ }
+  }
+  const sourceResults = await Promise.all(safeSources.map(async u => {
+    const platform = u.hostname.includes("github.com") ? "GitHub" : u.hostname.includes("huggingface.co") ? "Hugging Face" : u.hostname.includes("linkedin.com") ? "LinkedIn" : "Kaggle";
+    if (platform === "GitHub") {
+      const parts = u.pathname.split("/").filter(Boolean);
+      if (!parts.length || parts.length > 2) return { url: u.href, platform, accessible: false, detail: "Use a public GitHub profile or repository URL." };
+      try {
+        const endpoint = parts.length === 1 ? "/users/" + encodeURIComponent(parts[0]) : "/repos/" + encodeURIComponent(parts[0]) + "/" + encodeURIComponent(parts[1]);
+        const data = await gh<any>(endpoint);
+        return { url: u.href, platform, accessible: true, detail: parts.length === 1
+          ? "Public profile metadata retrieved. Profile metadata does not prove individual ownership or skill."
+          : "Public repository metadata retrieved: " + (data.description || data.full_name) + ". Inspect code, commit history, and contribution context before attributing work.",
+          evidence: { name: data.name || data.login, description: data.description || data.bio || null, htmlUrl: data.html_url, language: data.language || null, fork: data.fork ?? null, stars: data.stargazers_count ?? null, updatedAt: data.updated_at || null } };
+      } catch (e) { return { url: u.href, platform, accessible: false, detail: (e as Error).message }; }
+    }
+    if (platform === "Hugging Face") {
+      const parts = u.pathname.split("/").filter(Boolean);
+      if (parts.length < 2) return { url: u.href, platform, accessible: false, detail: "Provide a specific public model or dataset URL for review." };
+      try {
+        const data = await fetch("https://huggingface.co/api/models/" + parts.slice(0, 2).map(encodeURIComponent).join("/"), { signal: AbortSignal.timeout(8000) });
+        if (!data.ok) return { url: u.href, platform, accessible: false, detail: "Model metadata could not be retrieved automatically; open the source and review it manually." };
+        const model = await data.json() as any;
+        return { url: u.href, platform, accessible: true, detail: "Public model metadata retrieved. This does not establish who trained the model or the candidate's contribution.", evidence: { id: model.id, pipeline_tag: model.pipeline_tag || null, downloads: model.downloads ?? null, likes: model.likes ?? null, lastModified: model.lastModified || null } };
+      } catch { return { url: u.href, platform, accessible: false, detail: "Automatic retrieval failed; review the public source manually." }; }
+    }
+    return { url: u.href, platform, accessible: false, detail: "Source link recorded, but automatic verification is not integrated for this platform. Human review required." };
+  }));
+  const evidenceText = sourceResults.map(s => JSON.stringify(s.evidence || {}) + " " + s.detail).join(" ").toLowerCase();
+  const claims = parsed.data.claims.map(claim => {
+    const terms = claim.toLowerCase().match(/[a-z0-9+#.]{3,}/g) || [];
+    const meaningful = terms.filter(t => !["the","and","for","with","from","built","using","used","developed","created","worked","project","candidate","implemented","responsible","helped","that","this"].includes(t));
+    const matched = meaningful.filter(t => evidenceText.includes(t));
+    return { claim, status: matched.length >= 2 ? "supporting_signals_found" : "needs_human_review",
+      matchedTerms: matched, detail: matched.length >= 2
+        ? "Some source metadata overlaps with this claim. This is a lead for review, not proof that the candidate personally performed the work."
+        : "Accessible source metadata does not provide enough signal to assess this claim. Inspect relevant files, diffs, commit history, model cards, and ownership context; do not treat missing evidence as proof of a false claim." };
+  });
+  r.json({ generatedAt: new Date().toISOString(), claims, sources: sourceResults,
+    summary: "Source-linked claim triage completed. No claim is automatically marked verified or false.",
+    limitations: ["GitHub and Hugging Face metadata are limited evidence; inspect artifacts and contribution history.", "LinkedIn and Kaggle links are recorded for human review only.", "Private, deleted, inaccessible, or unlinked work may not appear.", "Metadata overlap is not proof of authorship, skill, or impact."] });
+});
 app.use((e:Error,_q:express.Request,r:express.Response,_n:express.NextFunction)=>r.status(e.message.includes("File too large")?413:400).json({error:e.message||"Request failed."}));
 app.listen(port,()=>console.log("ByteM API listening on http://localhost:"+port));
