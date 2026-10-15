@@ -51,6 +51,7 @@ const navItems: { id: Page; icon: string; label: string }[] = [
 
 export default function App() {
   const [page, setPage] = useState<Page>("overview");
+  const [darkMode, setDarkMode] = useState(false);
   const [githubUrl, setGithubUrl] = useState("");
   const [role, setRole] = useState("sde");
   const [roles, setRoles] = useState<Role[]>([]);
@@ -103,12 +104,12 @@ export default function App() {
 
   const pageTitle = navItems.find((item) => item.id === page)?.label ?? "Overview";
 
-  return <div className="app-frame">
+  return <div className={"app-frame " + (darkMode ? "theme-dark" : "theme-light")}>
     <main className="main-area">
       <header className="page-topbar">
         <a className="brand top-brand" href="#" onClick={(e) => { e.preventDefault(); setPage("overview"); }} aria-label="ByteM home"><span className="brand-symbol">B</span><span className="top-brand-copy"><strong>ByteM</strong><small>BYTE MATTERS</small></span></a>
         <nav className="top-nav" aria-label="Main navigation">{navItems.map((item) => <button key={item.id} className={"top-nav-item " + (page === item.id ? "active" : "")} onClick={() => setPage(item.id)}>{item.label}{item.id === "sources" && <span className="nav-count">1/4</span>}</button>)}</nav>
-        <div className="topbar-right"><span className="live-pill"><i></i> Preview</span><a href="https://github.com/Abhinavjs903/ByteM" target="_blank" rel="noreferrer" className="github-link">GitHub ↗</a></div>
+        <div className="topbar-right"><span className="live-pill"><i></i> Preview</span><button className="theme-toggle" type="button" onClick={() => setDarkMode(v => !v)} aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"} title={darkMode ? "Switch to light mode" : "Switch to dark mode"}>{darkMode ? "☀ Light" : "◐ Dark"}</button><a href="https://github.com/Abhinavjs903/ByteM" target="_blank" rel="noreferrer" className="github-link">GitHub ↗</a></div>
       </header>
       {page === "overview" && <section className="page-content">
         <div className="welcome-row"><div><p className="eyebrow">TECHNICAL TALENT INTELLIGENCE</p><h1>Research beyond the resume.</h1><p className="muted-text">Turn public technical work into structured, evidence-linked research.</p><div className="hero-chips"><span><i className="chip-dot cyan"></i> GitHub evidence</span><span><i className="chip-dot green"></i> Resume analysis</span><span><i className="chip-dot violet"></i> Custom role signals</span></div></div><div className="hero-visual" aria-hidden="true"><div className="hero-glow"></div><div className="hero-ring ring-one"></div><div className="hero-ring ring-two"></div><div className="hero-core"><span>B</span><small>BYTE<br/>MATTERS</small></div><div className="hero-float float-top">↗ <span>Evidence</span></div><div className="hero-float float-bottom">✓ <span>Role signals</span></div></div><button className="primary compact" onClick={() => setPage("research")}>＋ New research</button></div>
