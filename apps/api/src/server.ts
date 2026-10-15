@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 
 const app=express(), port=Number(process.env.PORT??4000), GH="https://api.github.com";
 const here=path.dirname(fileURLToPath(import.meta.url)), dataDir=path.resolve(here,"../data"), rolesPath=path.join(dataDir,"roles.json");
-app.use(cors({origin:process.env.WEB_ORIGIN??"http://localhost:5173"})); app.use(express.json({limit:"3mb"}));
+const allowedWebOrigin=process.env.WEB_ORIGIN??"http://localhost:5173"; app.use(cors({origin:(origin,callback)=>{if(!origin||origin===allowedWebOrigin||origin.startsWith("chrome-extension://"))return callback(null,true);return callback(new Error("Origin not allowed by ByteM API CORS policy"));}})); app.use(express.json({limit:"3mb"}));
 const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:8*1024*1024}});
 type Role={id:string;name:string;description:string;keywords:string[];builtIn?:boolean;createdAt:string};
 const builtIns:Role[]=[
