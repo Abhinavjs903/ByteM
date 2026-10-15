@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "ByteM — Candidate Research",
+  "version": "0.1.0",
+  "description": "Review resume claims against public technical evidence.",
+  "permissions": [
+    "sidePanel",
+    "activeTab",
+    "tabs"
+  ],
+  "host_permissions": [
+    "http://localhost:4000/*",
+    "http://127.0.0.1:4000/*",
+    "https://api.github.com/*",
+    "https://huggingface.co/api/*"
+  ],
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "action": {
+    "default_title": "Open ByteM research panel"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  }
+}
