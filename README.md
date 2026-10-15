@@ -1,11 +1,13 @@
-# ByteM (Byte Matters) — 3-hour GitHub Evidence MVP
+# ByteM (Byte Matters)
 
-ByteM is a technical candidate research prototype. This build retrieves public GitHub profile/repository metadata, samples commits, shows source links, surfaces role-keyword matches, lists limitations, and suggests interview questions. It is not a full code audit, does not yet use an LLM, and must not be used as the sole basis for hiring.
+An evidence-first technical candidate research prototype. ByteM helps reviewers inspect public technical work, flag resume details for review, and prepare role-specific interview questions. It does not make hiring decisions.
 
-## Stack
-- Frontend: React, TypeScript, Vite
-- Backend: Node.js, Express, TypeScript
-- Evidence source: GitHub REST API (public endpoints)
+## Features
+- Long-scroll dark dashboard with role-focused overview.
+- GitHub public profile, repository metadata, sampled commits, and source links.
+- Resume parsing for text-based PDF, DOCX, and TXT files; flags potential gaps and shows keyword coverage across roles.
+- Built-in role lenses (Software Engineering, Cybersecurity, ML/AI) plus custom roles with editable keyword sets.
+- Demo report clearly labelled as sample data.
 
 ## Run locally (Node.js 20+)
 Terminal 1:
@@ -21,18 +23,13 @@ cd apps/web
 npm install
 npm run dev
 ```
-Open the Vite URL (usually http://localhost:5173). API health: http://localhost:4000/api/health.
+Open http://localhost:5173. API health: http://localhost:4000/api/health.
 
-Optional: add a GitHub personal access token with public read-only access to `apps/api/.env` as `GITHUB_TOKEN=...` to raise rate limits. Do not commit `.env` or expose the token in frontend code.
+Optional: set `GITHUB_TOKEN` in `apps/api/.env` to raise GitHub API rate limits. Never commit .env or expose the token in frontend code.
 
-## Current intended functionality
-- Accept GitHub profile or repository URL and target role (SDE, Cybersecurity, ML/AI).
-- Retrieve public profile, up to 12 non-fork repos (or selected repo plus profile sample), and commits from up to 4 sampled repos.
-- Show repository metadata, source links, role keyword matches, uncertainties, and role-specific interview prompts.
-- Keep uncertainty visible; keyword matches are leads, not proof of skill.
-
-## Known limitations (do not overclaim)
-- No LLM integration, Chrome extension, WebCMD automation, authentication, database, or deployment configured.
-- GitHub's author filter can miss contributions and cannot prove independent authorship.
-- Role matching is keyword-based; no source code is audited.
-- Runtime, install, build, and live API behavior must be verified on the developer's machine before the demo.
+## Important limitations
+- Resume flags and role-fit percentages use deterministic keyword heuristics; they are not AI judgments, probabilities, or validated skill scores.
+- Resume uploads are processed by the local API and are not saved by the application. Scanned PDFs need OCR; legacy .doc is not supported (save as DOCX/PDF).
+- Custom roles are saved in `apps/api/data/roles.json` on the machine running the API.
+- GitHub evidence is limited to public metadata and a small commit sample. No full source-code audit or proof of authorship is performed.
+- Runtime/build and end-to-end behavior still need to be verified locally after installing dependencies.
