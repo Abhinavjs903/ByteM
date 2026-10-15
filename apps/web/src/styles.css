@@ -211,3 +211,17 @@ body{font-size:15px}
 .resume-report-stats span{font-weight:600;letter-spacing:.15px}
 .report-role-top b{font-size:15px}
 @media(max-width:520px){.report-status{max-width:none;text-align:left}.resume-report-stats span{font-size:11px}}
+
+/* Resume claim-to-evidence review */
+.claim-verification-panel{margin-top:22px;display:grid;gap:12px}
+.claim-verification-panel h2{font:600 20px 'Space Grotesk';margin:0;color:#edf5ff}
+.field-label{font-size:12px;font-weight:700;color:#b8c9df;margin-top:4px}
+.claim-textarea{width:100%;resize:vertical;border:1px solid #2a3d55;border-radius:9px;background:#0b1421;color:#e8f1ff;padding:12px;font:12px/1.6 'DM Sans',sans-serif;outline:none}
+.claim-textarea:focus{border-color:#54c7e7;box-shadow:0 0 0 3px #54c7e71a}
+.claim-textarea::placeholder{color:#657d99}
+.claim-review-results{display:grid;gap:12px;margin-top:10px;border-top:1px solid #26364b;padding-top:18px}
+.claim-review-results h3{font:600 15px 'Space Grotesk';margin:8px 0;color:#dce9fa}
+.claim-review-results .report-flag{margin:0}
+.claim-review-results .section-check{border-bottom:1px solid #1f3044;padding:12px 0}
+.claim-review-results a{color:#62d0e8}
+@media(max-width:700px){.claim-verification-panel{padding:16px}.claim-verification-panel .primary{white-space:normal}}
