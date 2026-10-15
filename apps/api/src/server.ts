@@ -1,118 +1,32 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import multer from "multer";
+import pdfParse from "pdf-parse";
+import mammoth from "mammoth";
 import { z } from "zod";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const app = express();
-const port = Number(process.env.PORT ?? 4000);
-const webOrigin = process.env.WEB_ORIGIN ?? "http://localhost:5173";
-const GH = "https://api.github.com";
-app.use(cors({ origin: webOrigin }));
-app.use(express.json({ limit: "1mb" }));
-
-const requestSchema = z.object({
-  githubUrl: z.string().url(),
-  role: z.enum(["sde", "cybersecurity", "ml_ai"]),
-});
-
-type Repo = {
-  name: string; full_name: string; html_url: string; description: string | null;
-  stargazers_count: number; forks_count: number; language: string | null;
-  topics?: string[]; updated_at: string; fork: boolean; default_branch: string;
-};
-type Commit = { html_url: string; commit: { message: string; author: { date: string; name: string } | null }; author: { login: string } | null };
-
-async function gh<T>(path: string): Promise<T> {
-  const headers: Record<string, string> = { Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "ByteM-Research-Prototype" };
-  if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
-  const response = await fetch(`${GH}${path}`, { headers, signal: AbortSignal.timeout(12000) });
-  if (!response.ok) {
-    const error = new Error(response.status === 404 ? "GitHub profile or repository was not found, or is private." : response.status === 403 ? "GitHub API rate limit reached. Add GITHUB_TOKEN to apps/api/.env and retry." : `GitHub API returned ${response.status}.`);
-    (error as Error & { status?: number }).status = response.status;
-    throw error;
-  }
-  return response.json() as Promise<T>;
-}
-
-function parseGithubUrl(raw: string) {
-  const url = new URL(raw);
-  if (url.hostname.toLowerCase() !== "github.com") throw new Error("Enter a public github.com profile or repository URL.");
-  const parts = url.pathname.split("/").filter(Boolean);
-  if (!parts.length || parts.length > 2) throw new Error("Use a profile URL (github.com/username) or repository URL (github.com/owner/repo).");
-  return { owner: parts[0], repoName: parts[1] };
-}
-
-app.get("/api/health", (_req, res) => res.json({ status: "ok", service: "bytem-api", stage: "github-evidence-mvp" }));
-
-app.post("/api/research", async (req, res) => {
-  const parsed = requestSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Provide a valid GitHub URL and target role." });
-  let parsedUrl: ReturnType<typeof parseGithubUrl>;
-  try { parsedUrl = parseGithubUrl(parsed.data.githubUrl); }
-  catch (e) { return res.status(400).json({ error: e instanceof Error ? e.message : "Invalid GitHub URL." }); }
-
-  try {
-    const { owner, repoName } = parsedUrl;
-    const profile = await gh<any>(`/users/${encodeURIComponent(owner)}`);
-    const allRepos = await gh<Repo[]>(`/users/${encodeURIComponent(owner)}/repos?per_page=100&sort=updated&type=owner`);
-    let repos = allRepos.filter(r => !r.fork).slice(0, 12);
-    if (repoName) {
-      const selected = await gh<Repo>(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repoName)}`);
-      repos = [selected, ...repos.filter(r => r.full_name !== selected.full_name)].slice(0, 12);
-    }
-    const commitTargets = repos.slice(0, 4);
-    const commitResults = await Promise.all(commitTargets.map(async repo => {
-      try {
-        const commits = await gh<Commit[]>(`/repos/${repo.full_name}/commits?author=${encodeURIComponent(owner)}&per_page=5`);
-        return { repo: repo.full_name, commits: commits.map(c => ({ message: c.commit.message.split("\n")[0], date: c.commit.author?.date ?? null, url: c.html_url, authorLogin: c.author?.login ?? null })) };
-      } catch { return { repo: repo.full_name, commits: [] as { message: string; date: string | null; url: string; authorLogin: string | null }[] }; }
-    }));
-
-    const roleLabels = { sde: "Software Engineering", cybersecurity: "Cybersecurity", ml_ai: "Machine Learning / AI" };
-    const languages = [...new Set(repos.map(r => r.language).filter(Boolean))] as string[];
-    const allCommits = commitResults.flatMap(r => r.commits.map(c => ({ ...c, repo: r.repo })));
-    const roleTerms: Record<string, string[]> = {
-      sde: ["api", "backend", "frontend", "web", "typescript", "react", "node", "test", "database", "server"],
-      cybersecurity: ["security", "ctf", "owasp", "vulnerability", "pentest", "malware", "forensic", "exploit", "soc", "crypto"],
-      ml_ai: ["machine learning", "deep learning", "model", "neural", "pytorch", "tensorflow", "dataset", "llm", "ai", "computer vision"]
-    };
-    const termHits = repos.filter(r => {
-      const text = `${r.name} ${r.description ?? ""} ${(r.topics ?? []).join(" ")} ${r.language ?? ""}`.toLowerCase();
-      return roleTerms[parsed.data.role].some(term => text.includes(term));
-    });
-    const evidence = [
-      { title: "Public profile retrieved", detail: `GitHub account @${profile.login} was retrieved from the public API.`, sourceUrl: profile.html_url, kind: "observation" },
-      { title: "Public repository sample", detail: `${repos.length} non-fork repositories (plus a selected repository if supplied) were inspected from the available public listing.`, sourceUrl: `https://github.com/${owner}?tab=repositories`, kind: "observation" },
-      { title: "Role-related metadata signals", detail: `${termHits.length} sampled repositories have names, descriptions, topics, or languages matching keywords for ${roleLabels[parsed.data.role]}. Keyword matches are leads, not proof of skill.`, sourceUrl: `https://github.com/${owner}?tab=repositories`, kind: "observation" },
-      { title: "Commit evidence", detail: `${allCommits.length} commits returned by GitHub's author filter across ${commitTargets.length} sampled repositories. This filter is not conclusive proof of authorship or independent work.`, sourceUrl: `https://github.com/${owner}?tab=repositories`, kind: "observation" },
-    ];
-    const uncertainties = [
-      "Public profile data cannot establish the candidate's full skill level or independent ownership of a project.",
-      "Only a limited, recently updated sample of repositories and commits was inspected; deleted, private, or older work is not represented.",
-      "Repository names, descriptions, stars, and language metadata are weak signals and may not reflect implementation depth.",
-      "No code-quality, security, reproducibility, or live-project audit has been performed in this MVP."
-    ];
-    const interviewQuestions: Record<string, string[]> = {
-      sde: ["Walk through a design decision in one of the sampled repositories and its trade-offs.", "Choose a recent commit and explain the problem, implementation, and how you tested it.", "What would you change first if this project had to serve 10× more users?"],
-      cybersecurity: ["Pick a security-related repository or write-up and explain the threat model and safe reproduction boundaries.", "How would you validate a vulnerability finding and distinguish a true positive from a false positive?", "Which mitigations and regression tests would you add, and why?"],
-      ml_ai: ["Explain the dataset provenance, baseline, and evaluation metric for a relevant project.", "How did you avoid data leakage and make the experiment reproducible?", "What failure cases or ablation tests changed your conclusions?"]
-    };
-    return res.json({
-      generatedAt: new Date().toISOString(),
-      candidate: { login: profile.login, name: profile.name, bio: profile.bio, avatarUrl: profile.avatar_url, profileUrl: profile.html_url, followers: profile.followers, publicRepos: profile.public_repos, createdAt: profile.created_at },
-      role: parsed.data.role, roleLabel: roleLabels[parsed.data.role],
-      summary: `${profile.login} has ${profile.public_repos} public repositories and ${profile.followers} followers. The sampled repositories use ${languages.slice(0, 6).join(", ") || "no declared primary languages"}. This is a source-linked preliminary scan, not a hiring recommendation.`,
-      evidence, uncertainties, interviewQuestions: interviewQuestions[parsed.data.role],
-      metrics: { sampledRepositories: repos.length, roleRelatedRepositories: termHits.length, sampledCommits: allCommits.length, languages },
-      repositories: repos.map(r => ({ name: r.name, fullName: r.full_name, url: r.html_url, description: r.description, language: r.language, stars: r.stargazers_count, forks: r.forks_count, fork: r.fork, updatedAt: r.updated_at, topics: r.topics ?? [], roleRelated: termHits.some(t => t.full_name === r.full_name) })),
-      commits: allCommits,
-      methodology: "Public GitHub API metadata only. Findings are observations and keyword leads; no overall candidate score is produced."
-    });
-  } catch (e) {
-    const err = e as Error & { status?: number };
-    const status = err.status === 404 ? 404 : err.status === 403 ? 429 : 502;
-    return res.status(status).json({ error: err.message || "Could not complete GitHub research. Check the URL and try again." });
-  }
-});
-
-app.listen(port, () => console.log(`ByteM API listening on http://localhost:${port}`));
+const app=express(), port=Number(process.env.PORT??4000), GH="https://api.github.com";
+const here=path.dirname(fileURLToPath(import.meta.url)), dataDir=path.resolve(here,"../data"), rolesPath=path.join(dataDir,"roles.json");
+app.use(cors({origin:process.env.WEB_ORIGIN??"http://localhost:5173"})); app.use(express.json({limit:"3mb"}));
+const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:8*1024*1024}});
+type Role={id:string;name:string;description:string;keywords:string[];builtIn?:boolean;createdAt:string};
+const builtIns:Role[]=[
+{id:"sde",name:"Software Engineering",description:"Build and maintain reliable software products.",keywords:["javascript","typescript","react","node","api","backend","frontend","sql","git","testing","python","java","c++"],builtIn:true,createdAt:"2026-01-01"},
+{id:"cybersecurity",name:"Cybersecurity",description:"Investigate security risks and build defensive tooling.",keywords:["security","owasp","ctf","vulnerability","penetration testing","pentest","malware","forensics","siem","soc","burp suite","nmap"],builtIn:true,createdAt:"2026-01-01"},
+{id:"ml_ai",name:"Machine Learning / AI",description:"Develop and evaluate data-driven models.",keywords:["machine learning","deep learning","pytorch","tensorflow","dataset","llm","artificial intelligence","computer vision","nlp","pandas","scikit-learn","model evaluation"],builtIn:true,createdAt:"2026-01-01"}];
+async function customRoles():Promise<Role[]>{try{return JSON.parse(await readFile(rolesPath,"utf8")) as Role[]}catch{await mkdir(dataDir,{recursive:true});await writeFile(rolesPath,"[]");return[]}}
+async function roles(){return [...builtIns,...await customRoles()]}
+app.get("/api/health",(_q,r)=>r.json({status:"ok",service:"bytem-api",features:["github-research","resume-flags","custom-roles"]}));
+app.get("/api/roles",async(_q,r)=>r.json({roles:await roles()}));
+app.post("/api/roles",async(q,r)=>{const p=z.object({name:z.string().trim().min(2).max(60),description:z.string().trim().max(240).default("Custom role profile"),keywords:z.array(z.string().trim().min(2).max(40)).min(2).max(30)}).safeParse(q.body);if(!p.success)return r.status(400).json({error:"Add a role name and at least two keywords."});const list=await roles();if(list.some(x=>x.name.toLowerCase()===p.data.name.toLowerCase()))return r.status(409).json({error:"Role already exists."});const role:Role={...p.data,id:"custom-"+Date.now().toString(36),keywords:[...new Set(p.data.keywords.map(x=>x.toLowerCase()))],createdAt:new Date().toISOString()};const all=await customRoles();all.push(role);await mkdir(dataDir,{recursive:true});await writeFile(rolesPath,JSON.stringify(all,null,2));r.status(201).json({role})});
+app.post("/api/resume/analyze",upload.single("resume"),async(q,r)=>{const f=q.file;if(!f)return r.status(400).json({error:"Choose a resume file first."});try{const name=f.originalname.toLowerCase();let text="";if(name.endsWith(".pdf")||f.mimetype==="application/pdf")text=(await pdfParse(f.buffer)).text;else if(name.endsWith(".docx")||f.mimetype.includes("wordprocessingml"))text=(await mammoth.extractRawText({buffer:f.buffer})).value;else if(name.endsWith(".txt")||f.mimetype==="text/plain")text=f.buffer.toString("utf8");else return r.status(415).json({error:"Use PDF, DOCX, or TXT. Legacy DOC is not supported yet."});text=text.replace(/\s+/g," ").trim();if(text.length<80)return r.status(422).json({error:"Not enough readable text. Scanned PDFs need OCR first."});const all=await roles(),lower=text.toLowerCase(),flags:{severity:"high"|"medium"|"info";title:string;detail:string}[]=[];const flag=(severity:"high"|"medium"|"info",title:string,detail:string)=>flags.push({severity,title,detail});if(!/[\w.+-]+@[\w.-]+\.[a-z]{2,}/i.test(text))flag("high","Email not detected","No email was found in extracted text; verify the contact section.");if(!/(github\.com|linkedin\.com|portfolio|website|gitlab\.com)/i.test(text))flag("medium","No technical profile link","Add a relevant public profile or portfolio link if available.");if(!/(experience|internship|employment|work history)/i.test(text))flag("medium","Experience section may be missing","No clear experience heading was detected.");if(!/(project|built|developed|implemented|created)/i.test(text))flag("medium","Project evidence looks thin","Describe what you built, your contribution and the outcome.");if(!/(\d+%|\d+ users|\d+\+|reduced|increased|improved|latency|accuracy|performance)/i.test(text))flag("info","Few measurable outcomes","Add defensible metrics where you have them.");const roleMatches=all.map(x=>{const matches=x.keywords.filter(k=>lower.includes(k.toLowerCase()));return{id:x.id,name:x.name,matches,totalKeywords:x.keywords.length,fitPercent:Math.min(100,Math.round(matches.length/Math.max(1,Math.min(x.keywords.length,8))*100))}}).sort((a,b)=>b.matches.length-a.matches.length);const detectedSkills=[...new Set(all.flatMap(x=>x.keywords).filter(k=>lower.includes(k.toLowerCase())))].slice(0,30),wordCount=text.split(/\s+/).filter(Boolean).length;r.json({filename:f.originalname,wordCount,extractedCharacters:text.length,flags,roleMatches,detectedSkills,summary:`Extracted ${wordCount} words and found ${detectedSkills.length} keyword matches across ${all.length} roles.`,limitations:["Keyword matching can miss synonyms or count skills without proof of competence.","Fit percentages are keyword coverage, not probability of job success.","Use flags as review prompts, never as automatic rejection rules."]})}catch(e){console.error(e);r.status(500).json({error:"Could not parse this file. Try a text-based PDF or DOCX."})}});
+type Repo={name:string;full_name:string;html_url:string;description:string|null;stargazers_count:number;forks_count:number;language:string|null;topics?:string[];updated_at:string;fork:boolean;default_branch:string};
+type Commit={html_url:string;commit:{message:string;author:{date:string;name:string}|null};author:{login:string}|null};
+async function gh<T>(p:string):Promise<T>{const headers:Record<string,string>={Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28","User-Agent":"ByteM"};if(process.env.GITHUB_TOKEN)headers.Authorization="Bearer "+process.env.GITHUB_TOKEN;const response=await fetch(GH+p,{headers,signal:AbortSignal.timeout(12000)});if(!response.ok){const e=new Error(response.status===404?"GitHub profile/repository not found or private.":response.status===403?"GitHub rate limit reached; set GITHUB_TOKEN in apps/api/.env.":`GitHub API returned ${response.status}`);(e as Error&{status?:number}).status=response.status;throw e}return response.json() as Promise<T>}
+app.post("/api/research",async(q,r)=>{const p=z.object({githubUrl:z.string().url(),role:z.string().min(1)}).safeParse(q.body);if(!p.success)return r.status(400).json({error:"Provide a GitHub URL and role."});let url:URL;try{url=new URL(p.data.githubUrl);if(url.hostname!=="github.com")throw Error();}catch{return r.status(400).json({error:"Use a github.com profile or repository URL."})}const parts=url.pathname.split("/").filter(Boolean);if(parts.length<1||parts.length>2)return r.status(400).json({error:"Use github.com/user or github.com/owner/repo."});try{const owner=parts[0],profile=await gh<any>("/users/"+encodeURIComponent(owner)),all=await gh<Repo[]>("/users/"+encodeURIComponent(owner)+"/repos?per_page=100&sort=updated&type=owner");let repos=all.filter(x=>!x.fork).slice(0,12);if(parts[1]){const selected=await gh<Repo>("/repos/"+encodeURIComponent(owner)+"/"+encodeURIComponent(parts[1]));repos=[selected,...repos.filter(x=>x.full_name!==selected.full_name)].slice(0,12)}const role=(await roles()).find(x=>x.id===p.data.role);if(!role)return r.status(400).json({error:"Unknown role. Refresh role list."});const results=await Promise.all(repos.slice(0,4).map(async repo=>{try{const cs=await gh<Commit[]>("/repos/"+repo.full_name+"/commits?author="+encodeURIComponent(owner)+"&per_page=5");return cs.map(c=>({message:c.commit.message.split("\n")[0],date:c.commit.author?.date??null,url:c.html_url,authorLogin:c.author?.login??null,repo:repo.full_name}))}catch{return[]}}));const commits=results.flat(),related=repos.filter(x=>role.keywords.some(k=>`${x.name} ${x.description??""} ${(x.topics??[]).join(" ")} ${x.language??""}`.toLowerCase().includes(k.toLowerCase()))),languages=[...new Set(repos.map(x=>x.language).filter(Boolean))];r.json({generatedAt:new Date().toISOString(),candidate:{login:profile.login,name:profile.name,bio:profile.bio,avatarUrl:profile.avatar_url,profileUrl:profile.html_url,followers:profile.followers,publicRepos:profile.public_repos,createdAt:profile.created_at},role:role.id,roleLabel:role.name,summary:`@${profile.login} has ${profile.public_repos} public repositories. Sampled languages: ${languages.join(", ")||"not declared"}. Preliminary scan only.`,evidence:[{title:"Public profile retrieved",detail:`GitHub account @${profile.login} retrieved from public API.`,sourceUrl:profile.html_url,kind:"observation"},{title:"Repository sample",detail:`${repos.length} repositories inspected.`,sourceUrl:`https://github.com/${owner}?tab=repositories`,kind:"observation"},{title:"Role keyword signals",detail:`${related.length} repositories match keywords for ${role.name}; this is not proof of skill.`,sourceUrl:`https://github.com/${owner}?tab=repositories`,kind:"observation"}],uncertainties:["Only a limited public sample was inspected.","Metadata cannot prove authorship or implementation depth.","No code-quality or security audit has been performed."],interviewQuestions:["Explain a design decision and trade-off in one sampled project.","Choose a commit and explain the problem, implementation and tests.","What would you improve first and how would you measure the result?"],metrics:{sampledRepositories:repos.length,roleRelatedRepositories:related.length,sampledCommits:commits.length,languages},repositories:repos.map(x=>({name:x.name,fullName:x.full_name,url:x.html_url,description:x.description,language:x.language,stars:x.stargazers_count,forks:x.forks_count,fork:x.fork,updatedAt:x.updated_at,topics:x.topics??[],roleRelated:related.some(y=>y.full_name===x.full_name)})),commits,methodology:`Public GitHub API metadata and keyword matching for ${role.name}; no candidate score is produced.`})}catch(e){const err=e as Error&{status?:number};r.status(err.status===404?404:err.status===403?429:502).json({error:err.message||"GitHub research failed."})}});
+app.use((e:Error,_q:express.Request,r:express.Response,_n:express.NextFunction)=>r.status(e.message.includes("File too large")?413:400).json({error:e.message||"Request failed."}));
+app.listen(port,()=>console.log("ByteM API listening on http://localhost:"+port));
