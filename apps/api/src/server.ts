@@ -18,7 +18,7 @@ const builtIns:Role[]=[
 {id:"sde",name:"Software Engineering",description:"Build and maintain reliable software products.",keywords:["javascript","typescript","react","node","api","backend","frontend","sql","git","testing","python","java","c++"],builtIn:true,createdAt:"2026-01-01"},
 {id:"cybersecurity",name:"Cybersecurity",description:"Investigate security risks and build defensive tooling.",keywords:["security","owasp","ctf","vulnerability","penetration testing","pentest","malware","forensics","siem","soc","burp suite","nmap"],builtIn:true,createdAt:"2026-01-01"},
 {id:"ml_ai",name:"Machine Learning / AI",description:"Develop and evaluate data-driven models.",keywords:["machine learning","deep learning","pytorch","tensorflow","dataset","llm","artificial intelligence","computer vision","nlp","pandas","scikit-learn","model evaluation"],builtIn:true,createdAt:"2026-01-01"}];
-async function customRoles():Promise<Role[]>{try{return JSON.parse(await readFile(rolesPath,"utf8")) as Role[]}catch{await mkdir(dataDir,{recursive:true});await writeFile(rolesPath,"[]");return[]}}
+async function customRoles():Promise<Role[]>{try{return JSON.parse(await readFile(rolesPath,"utf8")) as Role[]}catch(error){if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;await mkdir(dataDir,{recursive:true});await writeFile(rolesPath,"[]");return[]}}
 async function roles(){return [...builtIns,...await customRoles()]}
 app.get("/api/health",(_q,r)=>r.json({status:"ok",service:"bytem-api",features:["github-research","resume-flags","custom-roles"]}));
 app.get("/api/roles",async(_q,r)=>r.json({roles:await roles()}));
