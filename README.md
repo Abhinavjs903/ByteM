@@ -3,7 +3,7 @@
 An evidence-first technical candidate research prototype. ByteM helps reviewers inspect public technical work, flag resume details for review, and prepare role-specific interview questions. It does not make hiring decisions.
 
 ## Features
-- Long-scroll dark dashboard with role-focused overview.
+- Long-scroll editorial dashboard with floating horizontal navigation, light/dark theme toggle, and improved readable type scale.
 - GitHub public profile, repository metadata, sampled commits, and source links.
 - Resume parsing for text-based PDF, DOCX, and TXT files; flags potential gaps and shows keyword coverage across roles.
 - Built-in role lenses (Software Engineering, Cybersecurity, ML/AI) plus custom roles with editable keyword sets.
